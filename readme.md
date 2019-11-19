@@ -4,7 +4,9 @@
 It's 2019 and this project is still actively developed.
 
 # imwatchingyou
+
 ## A "live" Python debugger.  
+
 ## Watch your program work without stopping its operation or flow 
 
 ![Many debugger windows 2](https://user-images.githubusercontent.com/13696193/59168455-d10d8e00-8b03-11e9-8aa7-cb3bf359b7a5.jpg)
@@ -34,7 +36,7 @@ or if you need to upgrade later:
 `pip install --upgrade --no-cache-dir imwatchingyou`
 
 
-Note that you __MUST__ install the debugger using pip rather than downloading.  There are some detailed technical reasons for this.  
+Note that you __MUST__ install the debugger using pip rather than downloading.  It depends on other packages and the pip install will make sure they are installed properly.
 
 So, don't forget: __You must pip install imwatchingyou in order to use it.__
 
@@ -44,10 +46,40 @@ So, don't forget: __You must pip install imwatchingyou in order to use it.__
 
 There are 3 lines of code to add to a program in order to make it debugger ready - The import, a "show debugger window" call, and a "refresh debugger windows" call.
 
+
+### Integrating with a Non-GUI Application
+
+It's your application's job to periodically call a "refresh" function.  The more frequently you call the refresh, the more quickly your commands/actions will be executed.  If you refresh once a second, then it could be 
+
+```python
+import imwatchingyou
+import time
+
+# imwatchingyou.show_debugger_window()    # Uncomment if you want to immediately display the debug window
+
+counter = 0     # Some variable for you to watch / changing
+# Using a loop in order to call the debugger refresh function on a periodic basis
+while True:
+    imwatchingyou.refresh_debugger()
+    time.sleep(.1)          # Simulating doing a bunch of work
+    # Using the counter to trigger the debug window display. You can use something else as your trigger. 
+    if counter == 20:
+        imwatchingyou.show_debugger_window()
+    # do something with a variable that we can see/modify
+    print(counter)
+    counter += 1
+```
+
+
+### Integrating with a PySimpleGUI Based Program
+
+You can use `imwatchingyou` with any of the PySimpleGUI ports.  The only requirement is that you call the refresh function periodically.  Adding it to your PySimpleGUI event loop is a good way of doing that.  Make sure you are not blocking on your `Window.read()` calls by adding a timeout.
+
 Here is an entire program that is debugged using `imwatchingyou`:
 
 ```python
 import PySimpleGUI as sg
+# import PySimpleGUIQt as sg        # can use with the Qt port too
 import imwatchingyou  # STEP 1
 
 """
@@ -67,7 +99,7 @@ import imwatchingyou  # STEP 1
         In this loop add this call:
         imwatchingyou.refresh()
 """
-
+sg.change_look_and_feel('BlueMono')
 layout = [
     [sg.T('A typical PSG application')],
     [sg.In(key='_IN_')],
@@ -84,7 +116,7 @@ counter = 0
 timeout = 100
 
 while True:  # Your Event Loop
-    event, values = window.Read(timeout=timeout)
+    event, values = window.read(timeout=timeout)
     if event in (None, 'Exit'):
         break
     elif event == 'Ok':
@@ -95,12 +127,12 @@ while True:  # Your Event Loop
         imwatchingyou.show_debugger_popout_window()  # STEP 2
     counter += 1
     # to prove window is operating, show the input in another area in the window.
-    window.Element('_OUT_').Update(values['_IN_'])
+    window['_OUT_'].update(values['_IN_'])
 
     # don't worry about the "state" of things, just call this function "frequently"
     imwatchingyou.refresh_debugger()  # STEP 3 - refresh debugger
 
-window.Close()
+window.close()
 
 ```
 
