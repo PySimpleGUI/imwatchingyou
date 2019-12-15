@@ -316,6 +316,15 @@ has happened in a short period of time.  Major new functionality AND it breaks t
 * Automatically create the debug class instance when any show or refresh call is made (no init needed!)
 
 
+### imwatchingyou 2.3.0 -  12-Dec-2019  
+
+* Addition of location parameter to popout window
+* Addition of location parameter to main debugger window
+* Added version number string
+* Changed the REPL to be a single line
+* Looks and acts like the built-in debugger inside PySimpleGUI
+
+
 
 # Design        
 # Author 

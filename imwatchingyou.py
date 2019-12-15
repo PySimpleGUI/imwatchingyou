@@ -1,6 +1,9 @@
 import PySimpleGUI as sg
 import inspect
 import textwrap
+from time import sleep
+
+version = __version__ = '2.3.0 Released 14-Dec-2019'
 
 """
     A "Live Debugging Tool" - "Watch" your code without stopping it.  Graphical user interface
@@ -51,7 +54,7 @@ class Debugger():
 
 
     # Includes the DUAL PANE (now 2 tabs)!  Don't forget REPL is there too!
-    def _build_main_debugger_window(self):
+    def _build_main_debugger_window(self, location=(None, None)):
         sg.ChangeLookAndFeel(COLOR_SCHEME)
 
         def InVar(key1):
@@ -65,9 +68,10 @@ class Debugger():
                            InVar('_VAR1_'),
                            InVar('_VAR2_'), ]
 
-        interactive_frame = [[sg.T('>>> ', size=(9, 1), justification='r'), sg.In(size=(83, 1), key='_INTERACTIVE_', tooltip='Type in any "expression" and it will be disaplayed below.'),
-                              sg.B('Go', bind_return_key=True, visible=False)],
-                             [sg.T('CODE >>> ', justification='r', size=(9, 1)), sg.In(size=(83, 1), key='_CODE_', tooltip='Use for things like import or other statements / lines of code')],
+        interactive_frame = [[sg.T('>>> '), sg.In(size=(83, 1), key='_REPL_',
+                                tooltip='Type in any "expression" or "statement"\n and it will be disaplayed below.\nPress RETURN KEY instead of "Go"\nbutton for faster use'),
+                              sg.B('Go', bind_return_key=True, visible=True)],
+                             # [sg.T('CODE >>> ', justification='r', size=(9, 1)), sg.In(size=(83, 1), key='_CODE_', tooltip='Use for things like import or other statements / lines of code')],
                              [sg.Multiline(size=(93, 26), key='_OUTPUT_', autoscroll=True, do_not_clear=True)], ]
 
         autowatch_frame = [[sg.Button('Choose Variables To Auto Watch', key='_LOCALS_'),
@@ -102,7 +106,7 @@ class Debugger():
                   [sg.Button('', image_data=red_x, key='_EXIT_', button_color=None),]]
 
         # ------------------------------- Create main window -------------------------------
-        window = sg.Window("I'm Watching You Debugger", layout, icon=PSGDebugLogo, margins=(0, 0)).Finalize()
+        window = sg.Window("I'm Watching You Debugger", layout, icon=PSGDebugLogo, margins=(0, 0), location=location).Finalize()
         window.Element('_VAR1_').SetFocus()
         self.watcher_window = window
         sg.ChangeLookAndFeel('SystemDefault')           # set look and feel to default before exiting
@@ -127,27 +131,21 @@ class Debugger():
             self.watcher_window = None
             return False
         # ------------------------------- Process events from REPL Tab -------------------------------
-        # Read the 2 "command" fields on REPL tab
-        cmd_interactive = values['_INTERACTIVE_']
-        cmd_code = values['_CODE_']
-        cmd = cmd_interactive or cmd_code
+        cmd = values['_REPL_']                  # get the REPL entered
         # BUTTON - GO (NOTE - This button is invisible!!)
         if event == 'Go':  # GO BUTTON
-            self.watcher_window.Element('_INTERACTIVE_').Update('')
-            self.watcher_window.Element('_CODE_').Update('')
+            self.watcher_window.Element('_REPL_').Update('')
             self.watcher_window.Element('_OUTPUT_').Update(">>> {}\n".format(cmd), append=True, autoscroll=True)
-            if cmd_interactive:     # if an EXPRESSION to be evaluated
+
+            try:
+                result = eval('{}'.format(cmd), myglobals, mylocals)
+            except Exception as e:
                 try:
-                    result = eval('{}'.format(cmd_interactive), myglobals, mylocals)
+                    result = exec('{}'.format(cmd), myglobals, mylocals)
                 except Exception as e:
                     result = 'Exception {}\n'.format(e)
-                self.watcher_window.Element('_OUTPUT_').Update('{}\n'.format(result), append=True, autoscroll=True)
-            elif cmd_code:          # if some CODE to execute
-                try:
-                    result = exec('{}'.format(cmd_code), myglobals, mylocals)
-                except Exception as e:
-                    result = 'Exception {}\n'.format(e)
-                self.watcher_window.Element('_OUTPUT_').Update('{}\n'.format(result), append=True, autoscroll=True)
+
+            self.watcher_window.Element('_OUTPUT_').Update('{}\n'.format(result), append=True, autoscroll=True)
         # BUTTON - DETAIL
         elif event.endswith('_DETAIL_'):  # DETAIL BUTTON
             var = values['_VAR{}_'.format(event[4])]
@@ -363,7 +361,7 @@ class Debugger():
     #  #  # # #   ## #    # #    # ##  ##
      ## ##  # #    # #####   ####  #    #
 
-    def _build_floating_window(self):
+    def _build_floating_window(self, location=(None, None)):
         if self.popout_window:              # if floating window already exists, close it first
             self.popout_window.Close()
         sg.ChangeLookAndFeel('Topanga')
@@ -373,8 +371,9 @@ class Debugger():
         layout = []
         line = []
         col = 0
-        self.popout_choices = self.local_choices
-        if self.popout_choices == {}:           # if nothing chosen, then choose all non-_ variables
+        # self.popout_choices = self.local_choices      # commented out so that ALL locals will be shown
+        self.popout_choices = {}                        # make sure all none _ variables shown
+        if self.popout_choices == {}:                   # if nothing chosen, then choose all non-_ variables
             for key in sorted(self.locals.keys()):
                 self.popout_choices[key] = not key.startswith('_')
 
@@ -399,9 +398,11 @@ class Debugger():
             [[sg.Button('', key='_EXIT_', image_data=red_x, button_color=('#282923', '#282923'), border_width=0)]])]]
 
         self.popout_window = sg.Window('Floating', layout, alpha_channel=0, no_titlebar=True, grab_anywhere=True,
-                                           element_padding=(0, 0), margins=(0, 0), keep_on_top=True, right_click_menu=['&Right', ['Debugger::RightClick', 'Exit::RightClick']], ).Finalize()
-        screen_size = self.popout_window.GetScreenDimensions()
-        self.popout_window.Move(screen_size[0] - self.popout_window.Size[0], 0)
+                                           element_padding=(0, 0), margins=(0, 0), keep_on_top=True,
+                                       right_click_menu=['&Right', ['Debugger::RightClick', 'Exit::RightClick']], location=location ).Finalize()
+        if location == (None, None):
+            screen_size = self.popout_window.GetScreenDimensions()
+            self.popout_window.Move(screen_size[0] - self.popout_window.Size[0], 0)
         self.popout_window.SetAlpha(1)
 
         sg.ChangeLookAndFeel('SystemDefault')
@@ -465,7 +466,7 @@ class Debugger():
 # 888         "Y88888 888  888  "Y8888P  "Y888 888  "Y88P"  888  888  88888P'
 
 
-def show_debugger_window():
+def show_debugger_window(location=(None, None)):
     '''
     Display the main debugger window with its 2 tabs
     :return:
@@ -483,11 +484,11 @@ def show_debugger_window():
         del frame
 
     if not debugger.watcher_window:
-        debugger.watcher_window = debugger._build_main_debugger_window()
+        debugger.watcher_window = debugger._build_main_debugger_window(location=location)
     return True
 
 
-def show_debugger_popout_window():
+def show_debugger_popout_window(location=(None, None)):
     '''
     Display the popout window in the upper right corner of screen
     :return:
@@ -507,7 +508,7 @@ def show_debugger_popout_window():
     if debugger.popout_window:
         debugger.popout_window.Close()
         debugger.popout_window = None
-    debugger._build_floating_window()
+    debugger._build_floating_window(location=location)
 
 
 
@@ -533,3 +534,16 @@ def refresh_debugger():
     sg.Window.read_call_from_debugger = False
     return rc
 
+
+def main():
+    print('Running the test harness... you should normally not see this. Import rather than run this package')
+    show_debugger_window()
+    i = 0
+    while True:
+        sleep(.1)
+        refresh_debugger()
+        i += 1
+
+if __name__ == '__main__':
+    main()
+    
