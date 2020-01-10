@@ -1,7 +1,7 @@
         
 ![Downloads](http://pepy.tech/badge/pysimpleguidebugger)
 
-It's 2019 and this project is still actively developed.
+It's 2020!  This project is alive and kicking - maintained and devloped.
 
 # imwatchingyou
 
